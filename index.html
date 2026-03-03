@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Platformer Leikur</title>
+    <title>Hoppuleikur</title>
     <style>
         * {
             margin: 0;
@@ -65,6 +65,16 @@
             border-radius: 4px;
             background: linear-gradient(to bottom, #87ceeb, #e0f7fa);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
+            height: auto;
+        }
+        @media (hover: none) and (pointer: coarse) {
+            .touch-hint {
+                display: block !important;
+            }
+            canvas {
+                touch-action: manipulation;
+            }
         }
         .controls {
             margin-top: 20px;
@@ -76,6 +86,51 @@
             padding: 4px 8px;
             border-radius: 4px;
             margin: 0 4px;
+        }
+        .touch-controls {
+            display: none;
+            margin-top: 20px;
+            justify-content: space-between;
+            padding: 0 20px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .touch-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid #f2e9e4;
+            border-radius: 50%;
+            color: #f2e9e4;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .touch-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .touch-left, .touch-right {
+            display: flex;
+            gap: 15px;
+        }
+        @media (hover: none) and (pointer: coarse) {
+            .touch-controls {
+                display: flex;
+            }
+            .controls p:first-child {
+                display: none;
+            }
+            #debugToggle {
+                display: none;
+            }
+            canvas {
+                touch-action: manipulation;
+            }
         }
         #eventLog {
             display: none;
@@ -94,11 +149,37 @@
         #eventLog div {
             margin: 2px 0;
         }
+        .character-select {
+            margin-bottom: 15px;
+        }
+        .char-btn {
+            background: #4a4e69;
+            color: #fff;
+            border: 2px solid transparent;
+            padding: 8px 16px;
+            margin: 0 5px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s;
+            font-family: 'Courier New', monospace;
+        }
+        .char-btn:hover {
+            background: #9a8c98;
+        }
+        .char-btn.active {
+            border-color: #e63946;
+            background: #22223b;
+        }
     </style>
 </head>
 <body>
     <button id="debugToggle" onclick="toggleDebug()">Villuleit: SLÖKKT</button>
     <div class="game-container">
+        <div class="character-select">
+            <button class="char-btn active" id="char-kall" onclick="selectCharacter('kall')">Kall</button>
+            <button class="char-btn" id="char-neo" onclick="selectCharacter('neo')">Neo</button>
+        </div>
         <div class="level-buttons">
             <button class="level-btn active" id="level1" onclick="selectLevel(1); this.blur()">Borð 1</button>
             <button class="level-btn" id="level2" onclick="selectLevel(2); this.blur()">Borð 2</button>
@@ -107,9 +188,19 @@
             <button class="level-btn" id="level5" onclick="selectLevel(5); this.blur()">Borð 5</button>
         </div>
         <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="touch-controls">
+            <div class="touch-left">
+                <div class="touch-btn" id="btnLeft">←</div>
+                <div class="touch-btn" id="btnRight">→</div>
+            </div>
+            <div class="touch-right">
+                <div class="touch-btn" id="btnJump">↟</div>
+                <div class="touch-btn" id="btnShoot">●</div>
+            </div>
+        </div>
         <div id="eventLog"></div>
         <div class="controls">
-            <p>Stjórnun: <span>A</span> <span>D</span> til að hreyfa &nbsp;|&nbsp; <span>W</span> eða <span>Space</span> til að hoppa &nbsp;|&nbsp; <span>Örvar</span> til að skjóta</p>
+            <p>Stýringar: <span>A</span> <span>D</span> til að hreyfa &nbsp;|&nbsp; <span>W</span> eða <span>Space</span> til að hoppa &nbsp;|&nbsp; <span>Örvar</span> til að skjóta</p>
         </div>
     </div>
     <script src="game.js"></script>

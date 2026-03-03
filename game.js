@@ -1,6 +1,87 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+const characters = {
+    kall: {
+        name: 'Kall',
+        draw: function(ctx, x, y, width, height, facingRight, state, frame) {
+            ctx.save();
+            ctx.translate(x + width / 2, y + height / 2);
+            if (!facingRight) ctx.scale(-1, 1);
+            
+            ctx.fillStyle = '#e63946';
+            ctx.fillRect(-width/2 + 4, -height/2 + 20, width - 8, height - 24);
+            
+            ctx.fillStyle = '#ffcc99';
+            ctx.fillRect(-width/2 + 12, -height/2 + 4, 16, 18);
+            
+            ctx.fillStyle = '#222';
+            ctx.fillRect(-width/2 + 14, -height/2 + 8, 4, 4);
+            ctx.fillRect(-width/2 + 22, -height/2 + 8, 4, 4);
+            
+            ctx.fillStyle = '#4a3728';
+            ctx.fillRect(-width/2 + 10, -height/2, 20, 8);
+            
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-width/2 + 2, -height/2 + 28, 8, 16);
+            ctx.fillRect(-width/2 + width - 10, -height/2 + 28, 8, 16);
+            
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(-width/2 + 14, -height/2 + 42, 10, 14);
+            
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(-width/2 + 12, height/2 - 6, 10, 6);
+            ctx.fillRect(-width/2 + width - 22, height/2 - 6, 10, 6);
+            
+            ctx.restore();
+        }
+    },
+    neo: {
+        name: 'Neo',
+        draw: function(ctx, x, y, width, height, facingRight, state, frame) {
+            ctx.save();
+            ctx.translate(x + width / 2, y + height / 2);
+            if (!facingRight) ctx.scale(-1, 1);
+            
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(-width/2 + 4, -height/2 + 20, width - 8, height - 24);
+            
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(-width/2 + 6, -height/2 + 22, width - 12, height - 30);
+            
+            ctx.fillStyle = '#ffcc99';
+            ctx.fillRect(-width/2 + 14, -height/2 + 6, 14, 16);
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(-width/2 + 16, -height/2 + 10, 4, 4);
+            ctx.fillRect(-width/2 + 24, -height/2 + 10, 4, 4);
+            
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-width/2 + 17, -height/2 + 11, 2, 2);
+            ctx.fillRect(-width/2 + 25, -height/2 + 11, 2, 2);
+            
+            ctx.fillStyle = '#e63946';
+            ctx.fillRect(-width/2 + 2, -height/2 + 28, 8, 14);
+            ctx.fillRect(-width/2 + width - 10, -height/2 + 28, 8, 14);
+            
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(-width/2 + 14, -height/2 + 40, 10, 14);
+            
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(-width/2 + 12, height/2 - 6, 10, 6);
+            ctx.fillRect(-width/2 + width - 22, height/2 - 6, 10, 6);
+            
+            ctx.restore();
+        }
+    }
+};
+
+let selectedCharacter = 'neo';
+
+let playerAnimFrame = 0;
+let playerAnimTimer = 0;
+let playerState = 'idle';
+
 const GRAVITY = 0.6;
 const FRICTION = 0.85;
 const MOVE_SPEED = 6;
@@ -16,9 +97,21 @@ let eventLog = [];
 function toggleDebug() {
     DEBUG_MODE = !DEBUG_MODE;
     const btn = document.getElementById('debugToggle');
-    btn.textContent = 'Debug: ' + (DEBUG_MODE ? 'ON' : 'OFF');
+    btn.textContent = 'Villuleit: ' + (DEBUG_MODE ? 'KVEIKT' : 'SLÖKKT');
     btn.style.background = DEBUG_MODE ? '#e63946' : '#4a4e69';
-    logEvent('Debug mode toggled: ' + (DEBUG_MODE ? 'ON' : 'OFF'));
+    logEvent('Villuleit breytt: ' + (DEBUG_MODE ? 'KVEIKT' : 'SLÖKKT'));
+}
+
+function selectCharacter(charKey) {
+    if (!characters[charKey]) return;
+    selectedCharacter = charKey;
+    playerAnimFrame = 0;
+    playerAnimTimer = 0;
+    playerState = 'idle';
+    
+    document.querySelectorAll('.char-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('char-' + charKey).classList.add('active');
+    logEvent('Karakter valinn: ' + characters[charKey].name);
 }
 
 function logEvent(msg) {
@@ -45,6 +138,8 @@ let currentTheme = 'grasslands';
 
 let cameraX = 0;
 let gameWon = false;
+let lives = 3;
+let livesArray = [true, true, true];
 
 const keys = {
     left: false,
@@ -56,8 +151,8 @@ const keys = {
 const player = {
     x: 100,
     y: 300,
-    width: 32,
-    height: 48,
+    width: 48,
+    height: 72,
     velX: 0,
     velY: 0,
     onGround: false,
@@ -72,6 +167,46 @@ let castle = {};
 let decorations = [];
 let bullets = [];
 let shootCooldown = 0;
+let particles = [];
+let lifePowerups = [];
+let boss = null;
+
+function createParticles(x, y, color, count = 15) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            velX: (Math.random() - 0.5) * 10,
+            velY: (Math.random() - 0.5) * 10 - 3,
+            size: Math.random() * 6 + 2,
+            color: color,
+            life: 1.0,
+            decay: Math.random() * 0.03 + 0.02
+        });
+    }
+}
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.velX;
+        p.y += p.velY;
+        p.velY += 0.2;
+        p.life -= p.decay;
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - cameraX, p.y, p.size, p.size);
+    });
+    ctx.globalAlpha = 1.0;
+}
 
 function generateLevel1() {
     WORLD_WIDTH = SCREEN_WIDTH * 5;
@@ -80,6 +215,7 @@ function generateLevel1() {
     coins = [];
     enemies = [];
     decorations = [];
+    lifePowerups = [];
     
     platforms.push({ x: 0, y: 550, width: 600, height: 50 });
     
@@ -156,6 +292,11 @@ function generateLevel1() {
     
     castle = { x: WORLD_WIDTH - 280, y: 350, width: 220, height: 200, doorX: WORLD_WIDTH - 180, doorY: 420, doorWidth: 60, doorHeight: 130 };
     platforms.push({ x: WORLD_WIDTH - 320, y: 550, width: 350, height: 50 });
+    
+    lifePowerups.push({ x: 1450, y: 320, width: 24, height: 24, collected: false });
+    lifePowerups.push({ x: 2200, y: 210, width: 24, height: 24, collected: false });
+    
+    boss = { x: WORLD_WIDTH - 400, y: 450, width: 60, height: 80, health: 5, maxHealth: 5, velX: 2, color: '#8b0000' };
 }
 
 function generateLevel2() {
@@ -165,6 +306,7 @@ function generateLevel2() {
     coins = [];
     enemies = [];
     decorations = [];
+    lifePowerups = [];
     
     platforms.push({ x: 0, y: 550, width: 700, height: 50 });
     
@@ -241,12 +383,21 @@ function generateLevel2() {
     
     castle = { x: WORLD_WIDTH - 250, y: 350, width: 200, height: 200, doorX: WORLD_WIDTH - 150, doorY: 420, doorWidth: 55, doorHeight: 130 };
     platforms.push({ x: WORLD_WIDTH - 300, y: 550, width: 350, height: 50 });
+    
+    lifePowerups.push({ x: 450, y: 250, width: 24, height: 24, collected: false });
+    lifePowerups.push({ x: 1400, y: 200, width: 24, height: 24, collected: false });
+    
+    boss = { x: WORLD_WIDTH - 380, y: 450, width: 60, height: 80, health: 5, maxHealth: 5, velX: 2.5, color: '#d4a017' };
 }
 
 function generateLevel3() {
     WORLD_WIDTH = SCREEN_WIDTH * 4;
     currentTheme = 'cave';
     platforms = [];
+    coins = [];
+    enemies = [];
+    decorations = [];
+    lifePowerups = [];
     coins = [];
     enemies = [];
     decorations = [];
@@ -316,12 +467,14 @@ function generateLevel3() {
     for (let i = 0; i < 12; i++) {
         decorations.push({ type: 'rock', x: i * 200 + Math.random() * 120, y: 530 + Math.random() * 20, size: 12 + Math.random() * 12 });
     }
-    for (let i = 0; i < 8; i++) {
-        decorations.push({ type: 'mushroom', x: 150 + i * 300 + Math.random() * 150, y: 530, size: 8 + Math.random() * 8 });
-    }
     
     castle = { x: WORLD_WIDTH - 220, y: 350, width: 180, height: 200, doorX: WORLD_WIDTH - 130, doorY: 420, doorWidth: 50, doorHeight: 130 };
     platforms.push({ x: WORLD_WIDTH - 280, y: 550, width: 320, height: 50 });
+    
+    lifePowerups.push({ x: 600, y: 300, width: 24, height: 24, collected: false });
+    lifePowerups.push({ x: 1200, y: 180, width: 24, height: 24, collected: false });
+    
+    boss = { x: WORLD_WIDTH - 350, y: 450, width: 60, height: 80, health: 5, maxHealth: 5, velX: 2.5, color: '#4a0d4a' };
 }
 
 function generateLevel4() {
@@ -331,60 +484,54 @@ function generateLevel4() {
     coins = [];
     enemies = [];
     decorations = [];
+    lifePowerups = [];
     
-    platforms.push({ x: 0, y: 550, width: 550, height: 50 });
+    platforms.push({ x: 0, y: 550, width: 600, height: 50 });
     
-    platforms.push({ x: 600, y: 500, width: 100, height: 25 });
-    platforms.push({ x: 750, y: 440, width: 80, height: 25 });
-    platforms.push({ x: 900, y: 380, width: 100, height: 25 });
-    platforms.push({ x: 1050, y: 320, width: 80, height: 25 });
-    platforms.push({ x: 1200, y: 260, width: 100, height: 25 });
-    platforms.push({ x: 1400, y: 320, width: 80, height: 25 });
+    platforms.push({ x: 200, y: 480, width: 100, height: 25 });
+    platforms.push({ x: 400, y: 400, width: 80, height: 25 });
+    platforms.push({ x: 600, y: 320, width: 120, height: 25 });
+    platforms.push({ x: 850, y: 250, width: 100, height: 25 });
+    platforms.push({ x: 1100, y: 320, width: 80, height: 25 });
     
-    platforms.push({ x: 1550, y: 550, width: 450, height: 50 });
+    platforms.push({ x: 1300, y: 550, width: 400, height: 50 });
     
-    platforms.push({ x: 1650, y: 480, width: 100, height: 25 });
-    platforms.push({ x: 1800, y: 420, width: 80, height: 25 });
-    platforms.push({ x: 1950, y: 350, width: 100, height: 25 });
-    platforms.push({ x: 2100, y: 420, width: 80, height: 25 });
-    platforms.push({ x: 2250, y: 480, width: 100, height: 25 });
+    platforms.push({ x: 1400, y: 480, width: 80, height: 25 });
+    platforms.push({ x: 1550, y: 400, width: 100, height: 25 });
+    platforms.push({ x: 1750, y: 320, width: 80, height: 25 });
+    platforms.push({ x: 1900, y: 250, width: 120, height: 25 });
+    platforms.push({ x: 2100, y: 320, width: 100, height: 25 });
     
-    platforms.push({ x: 2400, y: 550, width: 500, height: 50 });
+    platforms.push({ x: 2300, y: 550, width: 500, height: 50 });
     
-    platforms.push({ x: 2500, y: 470, width: 80, height: 25 });
-    platforms.push({ x: 2650, y: 400, width: 100, height: 25 });
-    platforms.push({ x: 2800, y: 330, width: 80, height: 25 });
-    platforms.push({ x: 2950, y: 400, width: 100, height: 25 });
-    platforms.push({ x: 3100, y: 470, width: 80, height: 25 });
-    
-    platforms.push({ x: 3250, y: 550, width: 450, height: 50 });
-    
-    platforms.push({ x: 3350, y: 460, width: 100, height: 25 });
-    platforms.push({ x: 3500, y: 380, width: 80, height: 25 });
-    platforms.push({ x: 3650, y: 300, width: 100, height: 25 });
-    platforms.push({ x: 3800, y: 380, width: 80, height: 25 });
+    platforms.push({ x: 2400, y: 480, width: 80, height: 25 });
+    platforms.push({ x: 2550, y: 400, width: 100, height: 25 });
+    platforms.push({ x: 2750, y: 320, width: 80, height: 25 });
+    platforms.push({ x: 2900, y: 250, width: 120, height: 25 });
+    platforms.push({ x: 3100, y: 320, width: 100, height: 25 });
+    platforms.push({ x: 3300, y: 400, width: 80, height: 25 });
+    platforms.push({ x: 3500, y: 480, width: 100, height: 25 });
+    platforms.push({ x: 3700, y: 550, width: 300, height: 50 });
     
     coins.push(
-        { x: 630, y: 460, width: 20, height: 20, collected: false },
-        { x: 770, y: 400, width: 20, height: 20, collected: false },
-        { x: 930, y: 340, width: 20, height: 20, collected: false },
-        { x: 1080, y: 280, width: 20, height: 20, collected: false },
-        { x: 1230, y: 220, width: 20, height: 20, collected: false },
-        { x: 1430, y: 280, width: 20, height: 20, collected: false },
-        { x: 1680, y: 440, width: 20, height: 20, collected: false },
-        { x: 1830, y: 380, width: 20, height: 20, collected: false },
-        { x: 1980, y: 310, width: 20, height: 20, collected: false },
-        { x: 2130, y: 380, width: 20, height: 20, collected: false },
-        { x: 2280, y: 440, width: 20, height: 20, collected: false },
-        { x: 2530, y: 430, width: 20, height: 20, collected: false },
-        { x: 2680, y: 360, width: 20, height: 20, collected: false },
-        { x: 2830, y: 290, width: 20, height: 20, collected: false },
-        { x: 2980, y: 360, width: 20, height: 20, collected: false },
-        { x: 3130, y: 430, width: 20, height: 20, collected: false },
-        { x: 3380, y: 420, width: 20, height: 20, collected: false },
-        { x: 3530, y: 340, width: 20, height: 20, collected: false },
-        { x: 3680, y: 260, width: 20, height: 20, collected: false },
-        { x: 3830, y: 340, width: 20, height: 20, collected: false }
+        { x: 240, y: 440, width: 20, height: 20, collected: false },
+        { x: 420, y: 360, width: 20, height: 20, collected: false },
+        { x: 630, y: 280, width: 20, height: 20, collected: false },
+        { x: 880, y: 210, width: 20, height: 20, collected: false },
+        { x: 1130, y: 280, width: 20, height: 20, collected: false },
+        { x: 1430, y: 440, width: 20, height: 20, collected: false },
+        { x: 1580, y: 360, width: 20, height: 20, collected: false },
+        { x: 1780, y: 280, width: 20, height: 20, collected: false },
+        { x: 1930, y: 210, width: 20, height: 20, collected: false },
+        { x: 2130, y: 280, width: 20, height: 20, collected: false },
+        { x: 2430, y: 440, width: 20, height: 20, collected: false },
+        { x: 2580, y: 360, width: 20, height: 20, collected: false },
+        { x: 2780, y: 280, width: 20, height: 20, collected: false },
+        { x: 2930, y: 210, width: 20, height: 20, collected: false },
+        { x: 3130, y: 280, width: 20, height: 20, collected: false },
+        { x: 3330, y: 360, width: 20, height: 20, collected: false },
+        { x: 3530, y: 440, width: 20, height: 20, collected: false },
+        { x: 3730, y: 510, width: 20, height: 20, collected: false }
     );
     
     enemies.push({ x: 150, y: 520, width: 32, height: 30, velX: 1.8, platformIndex: 0 });
@@ -400,17 +547,19 @@ function generateLevel4() {
     enemies.push({ x: 3700, y: 270, width: 32, height: 30, velX: -1.8, platformIndex: 21 });
     
     for (let i = 0; i < 15; i++) {
-        decorations.push({ type: 'snowtree', x: 80 + i * 320, y: 530, size: 45 + Math.random() * 25 });
+        decorations.push({ type: 'snowtree', x: i * 350 + Math.random() * 150, y: 530, size: 40 + Math.random() * 20 });
     }
     for (let i = 0; i < 10; i++) {
-        decorations.push({ type: 'snowman', x: 200 + i * 400 + Math.random() * 150, y: 530, size: 18 + Math.random() * 8 });
-    }
-    for (let i = 0; i < 12; i++) {
-        decorations.push({ type: 'cloud', x: i * 280 + Math.random() * 150, y: 35 + Math.random() * 50, size: 22 + Math.random() * 12 });
+        decorations.push({ type: 'cloud', x: i * 400 + Math.random() * 200, y: 40 + Math.random() * 60, size: 30 + Math.random() * 15 });
     }
     
-    castle = { x: WORLD_WIDTH - 260, y: 350, width: 200, height: 200, doorX: WORLD_WIDTH - 160, doorY: 420, doorWidth: 55, doorHeight: 130 };
-    platforms.push({ x: WORLD_WIDTH - 300, y: 550, width: 340, height: 50 });
+    castle = { x: WORLD_WIDTH - 220, y: 350, width: 180, height: 200, doorX: WORLD_WIDTH - 130, doorY: 420, doorWidth: 50, doorHeight: 130 };
+    platforms.push({ x: WORLD_WIDTH - 280, y: 550, width: 320, height: 50 });
+    
+    lifePowerups.push({ x: 600, y: 280, width: 24, height: 24, collected: false });
+    lifePowerups.push({ x: 1900, y: 210, width: 24, height: 24, collected: false });
+    
+    boss = { x: WORLD_WIDTH - 350, y: 450, width: 60, height: 80, health: 5, maxHealth: 5, velX: 3, color: '#4a90d9' };
 }
 
 function generateLevel5() {
@@ -420,6 +569,7 @@ function generateLevel5() {
     coins = [];
     enemies = [];
     decorations = [];
+    lifePowerups = [];
     
     platforms.push({ x: 0, y: 550, width: 400, height: 50 });
     
@@ -500,6 +650,11 @@ function generateLevel5() {
     
     castle = { x: WORLD_WIDTH - 200, y: 350, width: 160, height: 200, doorX: WORLD_WIDTH - 120, doorY: 420, doorWidth: 45, doorHeight: 130 };
     platforms.push({ x: WORLD_WIDTH - 250, y: 550, width: 300, height: 50 });
+    
+    lifePowerups.push({ x: 500, y: 300, width: 24, height: 24, collected: false });
+    lifePowerups.push({ x: 1400, y: 200, width: 24, height: 24, collected: false });
+    
+    boss = { x: WORLD_WIDTH - 320, y: 450, width: 60, height: 80, health: 5, maxHealth: 5, velX: 3.5, color: '#ff4500' };
 }
 
 function generateWorld() {
@@ -515,6 +670,7 @@ function generateWorld() {
 
 let score = 0;
 let gameOver = false;
+let gameState = 'title';
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -879,21 +1035,36 @@ function drawDecorations() {
 }
 
 function drawPlayer() {
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x - cameraX, player.y, player.width, player.height);
+    const screenX = player.x - cameraX;
+    const char = characters[selectedCharacter];
     
-    ctx.fillStyle = '#ffd6a5';
-    ctx.fillRect(player.x - cameraX + 6, player.y + 8, 20, 16);
+    if (!player.onGround) {
+        playerState = 'jump';
+        playerAnimTimer++;
+        if (playerAnimTimer > 8) {
+            playerAnimTimer = 0;
+            playerAnimFrame = (playerAnimFrame + 1) % 2;
+        }
+    } else if (Math.abs(player.velX) > 0.5) {
+        playerState = 'run';
+        playerAnimTimer++;
+        if (playerAnimTimer > 5) {
+            playerAnimTimer = 0;
+            playerAnimFrame = (playerAnimFrame + 1) % 4;
+        }
+    } else {
+        playerState = 'idle';
+        playerAnimFrame = 0;
+        playerAnimTimer = 0;
+    }
     
-    ctx.fillStyle = '#1d3557';
-    ctx.fillRect(player.x - cameraX + 8, player.y + 12, 6, 6);
-    ctx.fillRect(player.x - cameraX + 18, player.y + 12, 6, 6);
+    char.draw(ctx, screenX, player.y, player.width, player.height, player.facingRight, playerState, playerAnimFrame);
     
     const gunX = player.facingRight ? player.x + player.width - 4 : player.x - 8;
     ctx.fillStyle = '#333';
-    ctx.fillRect(gunX - cameraX, player.y + 20, 12, 8);
+    ctx.fillRect(gunX - cameraX, player.y + 30, 16, 10);
     ctx.fillStyle = '#555';
-    ctx.fillRect(gunX - cameraX + (player.facingRight ? 8 : 0), player.y + 22, 4, 4);
+    ctx.fillRect(gunX - cameraX + (player.facingRight ? 10 : 0), player.y + 32, 6, 6);
 }
 
 function drawPlatforms() {
@@ -980,6 +1151,25 @@ function drawCoins() {
     });
 }
 
+function drawLifePowerups() {
+    lifePowerups.forEach(powerup => {
+        if (powerup.collected) return;
+        if (powerup.x - cameraX > SCREEN_WIDTH || powerup.x + powerup.width - cameraX < 0) return;
+        
+        const x = powerup.x - cameraX + powerup.width / 2;
+        const y = powerup.y + powerup.height / 2;
+        
+        ctx.fillStyle = '#e63946';
+        ctx.beginPath();
+        ctx.moveTo(x, y + 5);
+        ctx.bezierCurveTo(x, y, x - 10, y, x - 10, y + 10);
+        ctx.bezierCurveTo(x - 10, y + 18, x, y + 25, x, y + 28);
+        ctx.bezierCurveTo(x, y + 25, x + 10, y + 18, x + 10, y + 10);
+        ctx.bezierCurveTo(x + 10, y, x, y, x, y + 5);
+        ctx.fill();
+    });
+}
+
 function drawEnemies() {
     enemies.forEach(enemy => {
         if (enemy.x - cameraX > SCREEN_WIDTH || enemy.x + enemy.width - cameraX < 0) return;
@@ -998,6 +1188,30 @@ function drawEnemies() {
         ctx.fillRect(enemy.x - cameraX + 7, enemy.y + 13, 3, 3);
         ctx.fillRect(enemy.x - cameraX + 19, enemy.y + 13, 3, 3);
     });
+}
+
+function drawBoss() {
+    if (!boss || boss.health <= 0) return;
+    if (boss.x - cameraX > SCREEN_WIDTH || boss.x + boss.width - cameraX < 0) return;
+    
+    const bossX = boss.x - cameraX;
+    
+    ctx.fillStyle = boss.color;
+    ctx.fillRect(bossX, boss.y, boss.width, boss.height);
+    
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillRect(bossX + 10, boss.y + 15, 40, 10);
+    
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(bossX + 15, boss.y + 17, 8, 6);
+    ctx.fillRect(bossX + 37, boss.y + 17, 8, 6);
+    
+    const healthBarWidth = 50;
+    const healthPercent = boss.health / boss.maxHealth;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(bossX, boss.y - 15, healthBarWidth, 8);
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(bossX, boss.y - 15, healthBarWidth * healthPercent, 8);
 }
 
 function drawBullets() {
@@ -1062,16 +1276,53 @@ function updateEnemies() {
             
             if (player.velY > 0 && playerBottom - player.velY <= enemyTop + 10) {
                 const enemyIndex = enemies.indexOf(enemy);
+                createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#8b4513', 20);
                 enemies.splice(enemyIndex, 1);
                 player.velY = -10;
                 score += 2;
                 playEnemyDeathSound();
             } else if (!gameOver) {
-                playGameOverSound();
-                gameOver = true;
+                loseLife();
             }
         }
     });
+}
+
+function updateBoss() {
+    if (!boss || boss.health <= 0) return;
+    
+    const castlePlatform = platforms.find(p => p.x + p.width > boss.x && p.x < boss.x + boss.width);
+    if (castlePlatform) {
+        if (boss.x <= castlePlatform.x) {
+            boss.x = castlePlatform.x;
+            boss.velX = Math.abs(boss.velX);
+        }
+        if (boss.x + boss.width >= castlePlatform.x + castlePlatform.width) {
+            boss.x = castlePlatform.x + castlePlatform.width - boss.width;
+            boss.velX = -Math.abs(boss.velX);
+        }
+    }
+    boss.x += boss.velX;
+    
+    if (checkCollision(player, boss)) {
+        if (!gameOver) {
+            loseLife();
+        }
+    }
+    
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const bullet = bullets[i];
+        if (checkCollision(bullet, boss)) {
+            bullets.splice(i, 1);
+            boss.health--;
+            createParticles(boss.x + boss.width / 2, boss.y + boss.height / 2, boss.color, 10);
+            
+            if (boss.health <= 0) {
+                createParticles(boss.x + boss.width / 2, boss.y + boss.height / 2, boss.color, 30);
+                score += 20;
+            }
+        }
+    }
 }
 
 function updateBullets() {
@@ -1092,7 +1343,11 @@ function updateBullets() {
         
         for (let j = enemies.length - 1; j >= 0; j--) {
             const enemy = enemies[j];
-            if (checkCollision(bullet, enemy)) {
+            const enemyScreenX = enemy.x - cameraX;
+            const isVisible = enemyScreenX + enemy.width > 0 && enemyScreenX < SCREEN_WIDTH;
+            
+            if (isVisible && checkCollision(bullet, enemy)) {
+                createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#8b4513', 20);
                 enemies.splice(j, 1);
                 bullets.splice(i, 1);
                 score += 2;
@@ -1103,22 +1358,66 @@ function updateBullets() {
     }
 }
 
+function drawLives() {
+    for (let i = 0; i < 3; i++) {
+        const x = 20 + i * 35;
+        const y = 100;
+        
+        if (livesArray[i]) {
+            ctx.fillStyle = '#e63946';
+            ctx.beginPath();
+            ctx.moveTo(x, y + 5);
+            ctx.bezierCurveTo(x, y, x - 10, y, x - 10, y + 10);
+            ctx.bezierCurveTo(x - 10, y + 18, x, y + 25, x, y + 28);
+            ctx.bezierCurveTo(x, y + 25, x + 10, y + 18, x + 10, y + 10);
+            ctx.bezierCurveTo(x + 10, y, x, y, x, y + 5);
+            ctx.fill();
+        } else {
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y + 5);
+            ctx.bezierCurveTo(x, y, x - 10, y, x - 10, y + 10);
+            ctx.bezierCurveTo(x - 10, y + 18, x, y + 25, x, y + 28);
+            ctx.bezierCurveTo(x, y + 25, x + 10, y + 18, x + 10, y + 10);
+            ctx.bezierCurveTo(x + 10, y, x, y, x, y + 5);
+            ctx.stroke();
+        }
+    }
+}
+
 function drawScore() {
     ctx.fillStyle = currentTheme === 'cave' || currentTheme === 'volcanic' ? '#fff' : '#1d3557';
     ctx.font = 'bold 24px Courier New';
     ctx.fillText('Mynt: ' + score, 20, 40);
-    ctx.fillText('Level: ' + currentLevel, 20, 70);
+    ctx.fillText('Borð: ' + currentLevel, 20, 70);
+    drawLives();
     
     if (DEBUG_MODE) {
         ctx.fillStyle = '#ff0000';
         ctx.font = '12px Courier New';
         ctx.textAlign = 'right';
-        ctx.fillText('Player: x=' + Math.round(player.x) + ' y=' + Math.round(player.y) + ' vy=' + Math.round(player.velY), SCREEN_WIDTH - 10, SCREEN_HEIGHT - 25);
+        ctx.fillText('Leikmaður: x=' + Math.round(player.x) + ' y=' + Math.round(player.y) + ' vy=' + Math.round(player.velY), SCREEN_WIDTH - 10, SCREEN_HEIGHT - 25);
         if (debugInfo) {
             ctx.fillText(debugInfo, SCREEN_WIDTH - 10, SCREEN_HEIGHT - 10);
         }
         ctx.textAlign = 'left';
     }
+}
+
+function drawTitleScreen() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#e63946';
+    ctx.font = 'bold 64px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('KALL', canvas.width / 2, canvas.height / 2 - 40);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Courier New';
+    ctx.fillText('Smelltu á skjáinn til að byrja', canvas.width / 2, canvas.height / 2 + 30);
+    ctx.textAlign = 'left';
 }
 
 function drawGameOver() {
@@ -1128,12 +1427,12 @@ function drawGameOver() {
     ctx.fillStyle = '#e63946';
     ctx.font = 'bold 48px Courier New';
     ctx.textAlign = 'center';
-    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+    ctx.fillText('LEIK LOKIÐ', canvas.width / 2, canvas.height / 2 - 20);
     
     ctx.fillStyle = '#fff';
     ctx.font = '24px Courier New';
     ctx.fillText('Mynt: ' + score, canvas.width / 2, canvas.height / 2 + 30);
-    ctx.fillText('Smelltu a R til ad byrja aftur', canvas.width / 2, canvas.height / 2 + 70);
+    ctx.fillText('Smelltu á skjáinn til að byrja aftur', canvas.width / 2, canvas.height / 2 + 70);
     ctx.textAlign = 'left';
 }
 
@@ -1144,12 +1443,12 @@ function drawWin() {
     ctx.fillStyle = '#4ade80';
     ctx.font = 'bold 48px Courier New';
     ctx.textAlign = 'center';
-    ctx.fillText('THU VANNST!', canvas.width / 2, canvas.height / 2 - 20);
+    ctx.fillText('ÞÚ VANNST!', canvas.width / 2, canvas.height / 2 - 20);
     
     ctx.fillStyle = '#fff';
     ctx.font = '24px Courier New';
     ctx.fillText('Mynt: ' + score, canvas.width / 2, canvas.height / 2 + 30);
-    ctx.fillText('Smelltu a R til ad spila aftur', canvas.width / 2, canvas.height / 2 + 70);
+    ctx.fillText('Smelltu á R til að spila aftur', canvas.width / 2, canvas.height / 2 + 70);
     ctx.textAlign = 'left';
 }
 
@@ -1230,8 +1529,9 @@ function updatePlayer() {
     if (player.x + player.width > WORLD_WIDTH) player.x = WORLD_WIDTH - player.width;
 
     if (player.y > canvas.height) {
-        if (!gameOver) playGameOverSound();
-        gameOver = true;
+        if (!gameOver) {
+            loseLife();
+        }
     }
 
     if (checkCollision(player, {
@@ -1240,7 +1540,7 @@ function updatePlayer() {
         width: castle.doorWidth,
         height: castle.doorHeight
     })) {
-        if (!gameWon) {
+        if (!gameWon && (!boss || boss.health <= 0)) {
             gameWon = true;
             score += 10;
             playWinSound();
@@ -1254,25 +1554,100 @@ function updatePlayer() {
             playCoinSound();
         }
     });
+    
+    lifePowerups.forEach(powerup => {
+        if (!powerup.collected && checkCollision(player, powerup)) {
+            powerup.collected = true;
+            if (lives < 3) {
+                lives++;
+                livesArray[lives - 1] = true;
+            } else {
+                score += 5;
+            }
+        }
+    });
 }
 
 function resetGame() {
     console.trace('resetGame CALLED');
-    logEvent('resetGame() called');
+    logEvent('resetGame() kallað');
     player.x = 100;
     player.y = 300;
     player.velX = 0;
     player.velY = 0;
     player.facingRight = true;
     score = 0;
+    lives = 3;
+    livesArray = [true, true, true];
     gameOver = false;
     gameWon = false;
+    gameState = 'playing';
     cameraX = 0;
     bullets = [];
     shootCooldown = 0;
     debugInfo = '';
     generateWorld();
-    logEvent('--- NEW GAME: Level ' + currentLevel + ' ---');
+    logEvent('--- NÝR LEIKUR: Borð ' + currentLevel + ' ---');
+}
+
+function respawnPlayer() {
+    let bestPlatform = null;
+    let bestScore = Infinity;
+    
+    platforms.forEach(platform => {
+        const platformCenterX = platform.x + platform.width / 2;
+        
+        if (platformCenterX < player.x + 100) {
+            let hasNearbyEnemy = false;
+            enemies.forEach(enemy => {
+                if (Math.abs(enemy.x - platformCenterX) < 150) {
+                    hasNearbyEnemy = true;
+                }
+            });
+            
+            if (!hasNearbyEnemy) {
+                const score = player.x - platformCenterX;
+                if (score >= 0 && score < bestScore) {
+                    bestScore = score;
+                    bestPlatform = platform;
+                }
+            }
+        }
+    });
+    
+    if (bestPlatform) {
+        player.x = bestPlatform.x + bestPlatform.width / 2 - player.width / 2;
+        player.y = bestPlatform.y - player.height;
+    } else {
+        player.x = 100;
+        player.y = 300;
+    }
+    
+    player.velX = 0;
+    player.velY = 0;
+    player.facingRight = true;
+    cameraX = Math.max(0, player.x - 200);
+    bullets = [];
+}
+
+function loseLife() {
+    lives--;
+    livesArray[lives] = false;
+    createParticles(player.x + player.width / 2, player.y + player.height / 2, player.color, 25);
+    
+    if (lives <= 0) {
+        playGameOverSound();
+        gameOver = true;
+    } else {
+        playGameOverSound();
+        setTimeout(() => {
+            respawnPlayer();
+        }, 500);
+        gameOver = true;
+        setTimeout(() => {
+            gameOver = false;
+        }, 600);
+    }
 }
 
 function selectLevel(level) {
@@ -1285,25 +1660,35 @@ function selectLevel(level) {
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    drawBackground();
-    drawDecorations();
-    drawCastle();
-    drawPlatforms();
-    drawCoins();
-    drawEnemies();
-    drawBullets();
-    drawPlayer();
-    drawScore();
-
-    if (!gameOver && !gameWon) {
-        updatePlayer();
-        updateEnemies();
-        updateBullets();
-        updateCamera();
-    } else if (gameWon) {
-        drawWin();
+    if (gameState === 'title') {
+        drawBackground();
+        drawTitleScreen();
     } else {
-        drawGameOver();
+        drawBackground();
+        drawDecorations();
+        drawCastle();
+        drawPlatforms();
+        drawCoins();
+        drawLifePowerups();
+        drawEnemies();
+        drawBoss();
+        drawBullets();
+        drawPlayer();
+        drawParticles();
+        drawScore();
+
+        if (!gameOver && !gameWon) {
+            updatePlayer();
+            updateEnemies();
+            updateBoss();
+            updateBullets();
+            updateParticles();
+            updateCamera();
+        } else if (gameWon) {
+            drawWin();
+        } else {
+            drawGameOver();
+        }
     }
 
     requestAnimationFrame(gameLoop);
@@ -1334,6 +1719,69 @@ document.addEventListener('keyup', (e) => {
         keys.shoot = false;
     }
 });
+
+function setupTouchControls() {
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+    const btnJump = document.getElementById('btnJump');
+    const btnShoot = document.getElementById('btnShoot');
+    
+    if (!btnLeft || !btnRight || !btnJump || !btnShoot) return;
+    
+    const handleTouchStart = (e, key) => {
+        e.preventDefault();
+        keys[key] = true;
+    };
+    
+    const handleTouchEnd = (e, key) => {
+        e.preventDefault();
+        keys[key] = false;
+    };
+    
+    btnLeft.addEventListener('touchstart', (e) => handleTouchStart(e, 'left'), { passive: false });
+    btnLeft.addEventListener('touchend', (e) => handleTouchEnd(e, 'left'), { passive: false });
+    btnLeft.addEventListener('mousedown', (e) => { e.preventDefault(); keys.left = true; });
+    btnLeft.addEventListener('mouseup', (e) => { e.preventDefault(); keys.left = false; });
+    btnLeft.addEventListener('mouseleave', (e) => { e.preventDefault(); keys.left = false; });
+    
+    btnRight.addEventListener('touchstart', (e) => handleTouchStart(e, 'right'), { passive: false });
+    btnRight.addEventListener('touchend', (e) => handleTouchEnd(e, 'right'), { passive: false });
+    btnRight.addEventListener('mousedown', (e) => { e.preventDefault(); keys.right = true; });
+    btnRight.addEventListener('mouseup', (e) => { e.preventDefault(); keys.right = false; });
+    btnRight.addEventListener('mouseleave', (e) => { e.preventDefault(); keys.right = false; });
+    
+    btnJump.addEventListener('touchstart', (e) => handleTouchStart(e, 'jump'), { passive: false });
+    btnJump.addEventListener('touchend', (e) => handleTouchEnd(e, 'jump'), { passive: false });
+    btnJump.addEventListener('mousedown', (e) => { e.preventDefault(); keys.jump = true; });
+    btnJump.addEventListener('mouseup', (e) => { e.preventDefault(); keys.jump = false; });
+    btnJump.addEventListener('mouseleave', (e) => { e.preventDefault(); keys.jump = false; });
+    
+    btnShoot.addEventListener('touchstart', (e) => handleTouchStart(e, 'shoot'), { passive: false });
+    btnShoot.addEventListener('touchend', (e) => handleTouchEnd(e, 'shoot'), { passive: false });
+    btnShoot.addEventListener('mousedown', (e) => { e.preventDefault(); keys.shoot = true; });
+    btnShoot.addEventListener('mouseup', (e) => { e.preventDefault(); keys.shoot = false; });
+    btnShoot.addEventListener('mouseleave', (e) => { e.preventDefault(); keys.shoot = false; });
+}
+
+canvas.addEventListener('touchstart', (e) => {
+    if (gameState === 'title') {
+        gameState = 'playing';
+        resetGame();
+    } else if (gameOver || gameWon) {
+        resetGame();
+    }
+});
+
+canvas.addEventListener('click', (e) => {
+    if (gameState === 'title') {
+        gameState = 'playing';
+        resetGame();
+    } else if (gameOver || gameWon) {
+        resetGame();
+    }
+});
+
+setupTouchControls();
 
 generateWorld();
 gameLoop();

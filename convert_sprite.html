@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SVG to PNG Converter</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: #fff; }
+        canvas { display: none; }
+        .preview { margin: 20px 0; }
+        .preview img { border: 2px solid #4a4e69; margin: 5px; }
+        button { background: #e63946; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; border-radius: 4px; }
+        button:hover { background: #ff6b6b; }
+    </style>
+</head>
+<body>
+    <h1>Character Sprite Converter</h1>
+    <p>Click the button to convert SVG to PNG sprite sheet</p>
+    <button onclick="convert()">Convert SVG to PNG</button>
+    <div class="preview" id="preview"></div>
+    <a id="download" style="display:none;">Download PNG</a>
+    
+    <canvas id="canvas" width="128" height="96"></canvas>
+    
+    <script>
+    const svgData = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="96" viewBox="0 0 128 96">
+  <defs>
+    <style>
+      .skin { fill: #ffcc99 }
+      .hair { fill: #4a3728 }
+      .shirt { fill: #3498db }
+      .shirt-dark { fill: #2980b9 }
+      .pants { fill: #2c3e50 }
+      .shoes { fill: #e74c3c }
+      .eye { fill: #fff }
+      .pupil { fill: #2c3e50 }
+    </style>
+  </defs>
+  
+  <!-- Row 0: Idle -->
+  <g id="idle">
+    <rect x="12" y="8" width="8" height="8" class="skin" rx="2"/>
+    <ellipse cx="16" cy="12" rx="5" ry="6" class="hair"/>
+    <rect x="10" y="16" width="12" height="10" class="shirt" rx="2"/>
+    <rect x="10" y="24" width="12" height="2" class="shirt-dark"/>
+    <rect x="11" y="26" width="4" height="8" class="pants"/>
+    <rect x="17" y="26" width="4" height="8" class="pants"/>
+    <rect x="10" y="34" width="5" height="3" class="shoes"/>
+    <rect x="17" y="34" width="5" height="3" class="shoes"/>
+    <circle cx="14" cy="10" r="1.5" class="eye"/>
+    <circle cx="14" cy="10" r="0.8" class="pupil"/>
+  </g>
+  
+  <!-- Row 1: Run -->
+  <g id="run0">
+    <rect x="12" y="8" width="8" height="8" class="skin" rx="2"/>
+    <ellipse cx="16" cy="12" rx="5" ry="6" class="hair"/>
+    <rect x="10" y="16" width="12" height="10" class="shirt" rx="2"/>
+    <rect x="10" y="24" width="12" height="2" class="shirt-dark"/>
+    <rect x="9" y="26" width="5" height="8" class="pants"/>
+    <rect x="18" y="26" width="4" height="8" class="pants"/>
+    <rect x="7" y="34" width="5" height="3" class="shoes"/>
+    <rect x="18" y="34" width="5" height="3" class="shoes"/>
+    <circle cx="14" cy="10" r="1.5" class="eye"/>
+    <circle cx="14" cy="10" r="0.8" class="pupil"/>
+  </g>
+  
+  <g id="run1">
+    <rect x="12" y="7" width="8" height="8" class="skin" rx="2"/>
+    <ellipse cx="16" cy="11" rx="5" ry="6" class="hair"/>
+    <rect x="9" y="15" width="12" height="10" class="shirt" rx="2"/>
+    <rect x="9" y="23" width="12" height="2" class="shirt-dark"/>
+    <rect x="10" y="25" width="5" height="8" class="pants"/>
+    <rect x="17" y="25" width="5" height="8" class="pants"/>
+    <rect x="8" y="33" width="5" height="3" class="shoes"/>
+    <rect x="19" y="33" width="5" height="3" class="shoes"/>
+    <circle cx="14" cy="9" r="1.5" class="eye"/>
+    <circle cx="14" cy="9" r="0.8" class="pupil"/>
+  </g>
+  
+  <g id="run2">
+    <rect x="12" y="8" width="8" height="8" class="skin" rx="2"/>
+    <ellipse cx="16" cy="12" rx="5" ry="6" class="hair"/>
+    <rect x="10" y="16" width="12" height="10" class="shirt" rx="2"/>
+    <rect x="10" y="24" width="12" height="2" class="shirt-dark"/>
+    <rect x="11" y="26" width="5" height="8" class="pants"/>
+    <rect x="17" y="26" width="4" height="8" class="pants"/>
+    <rect x="11" y="34" width="5" height="3" class="shoes"/>
+    <rect x="17" y="34" width="5" height="3" class="shoes"/>
+    <circle cx="14" cy="10" r="1.5" class="eye"/>
+    <circle cx="14" cy="10" r="0.8" class="pupil"/>
+  </g>
+  
+  <g id="run3">
+    <rect x="12" y="7" width="8" height="8" class="skin" rx="2"/>
+    <ellipse cx="16" cy="11" rx="5" ry="6" class="hair"/>
+    <rect x="9" y="15" width="12" height="10" class="shirt" rx="2"/>
+    <rect x="9" y="23" width="12" height="2" class="shirt-dark"/>
+    <rect x="10" y="25" width="5" height="8" class="pants"/>
+    <rect x="17" y="25" width="5" height="8" class="pants"/>
+    <rect x="9" y="33" width="5" height="3" class="shoes"/>
+    <rect x="18" y="33" width="5" height="3" class="shoes"/>
+    <circle cx="14" cy="9" r="1.5" class="eye"/>
+    <circle cx="14" cy="9" r="0.8" class="pupil"/>
+  </g>
+  
+  <!-- Row 2: Jump -->
+  <g id="jump0">
+    <rect x="12" y="6" width="8" height="8" class="skin" rx="2"/>
+    <ellipse cx="16" cy="10" rx="5" ry="6" class="hair"/>
+    <rect x="9" y="14" width="12" height="10" class="shirt" rx="2"/>
+    <rect x="9" y="22" width="12" height="2" class="shirt-dark"/>
+    <rect x="10" y="24" width="5" height="6" class="pants"/>
+    <rect x="17" y="24" width="5" height="6" class="pants"/>
+    <rect x="7" y="30" width="5" height="3" class="shoes"/>
+    <rect x="20" y="30" width="5" height="3" class="shoes"/>
+    <circle cx="14" cy="8" r="1.5" class="eye"/>
+    <circle cx="14" cy="8" r="0.8" class="pupil"/>
+  </g>
+  
+  <g id="jump1">
+    <rect x="12" y="4" width="8" height="8" class="skin" rx="2"/>
+    <ellipse cx="16" cy="8" rx="5" ry="6" class="hair"/>
+    <rect x="9" y="12" width="12" height="10" class="shirt" rx="2"/>
+    <rect x="9" y="20" width="12" height="2" class="shirt-dark"/>
+    <rect x="10" y="22" width="5" height="5" class="pants"/>
+    <rect x="17" y="22" width="5" height="5" class="pants"/>
+    <rect x="6" y="27" width="5" height="3" class="shoes"/>
+    <rect x="21" y="27" width="5" height="3" class="shoes"/>
+    <circle cx="14" cy="6" r="1.5" class="eye"/>
+    <circle cx="14" cy="6" r="0.8" class="pupil"/>
+  </g>
+</svg>`;
+
+    function convert() {
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        const blob = new Blob([svgData], {type: 'image/svg+xml'});
+        const url = URL.createObjectURL(blob);
+        
+        img.onload = function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            
+            const pngUrl = canvas.toDataURL('image/png');
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '<img src="' + pngUrl + '" width="256">';
+            
+            const download = document.getElementById('download');
+            download.href = pngUrl;
+            download.download = 'character_neo_sprite.png';
+            download.style.display = 'inline-block';
+            download.textContent = 'Download character_neo_sprite.png';
+        };
+        
+        img.src = url;
+    }
+    </script>
+</body>
+</html>
