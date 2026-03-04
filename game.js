@@ -53,10 +53,19 @@ let playerAnimFrame = 0;
 let playerAnimTimer = 0;
 let playerState = 'idle';
 
-const GRAVITY = 0.6;
-const FRICTION = 0.85;
-const MOVE_SPEED = 6;
-const JUMP_FORCE = -14;
+const TARGET_FPS = 60;
+const GRAVITY_BASE = 0.6;
+const FRICTION_BASE = 0.85;
+const MOVE_SPEED_BASE = 6;
+const JUMP_FORCE_BASE = -14;
+
+let GRAVITY = GRAVITY_BASE;
+let FRICTION = FRICTION_BASE;
+let MOVE_SPEED = MOVE_SPEED_BASE;
+let JUMP_FORCE = JUMP_FORCE_BASE;
+
+let lastTime = 0;
+let timeScale = 1;
 
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 600;
@@ -148,10 +157,10 @@ function createParticles(x, y, color, count = 15) {
 function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        p.x += p.velX;
-        p.y += p.velY;
-        p.velY += 0.2;
-        p.life -= p.decay;
+        p.x += p.velX * timeScale;
+        p.y += p.velY * timeScale;
+        p.velY += 0.2 * timeScale;
+        p.life -= p.decay * timeScale;
         if (p.life <= 0) {
             particles.splice(i, 1);
         }
@@ -1072,15 +1081,15 @@ function updateEnemies() {
         const platform = platforms[enemy.platformIndex];
         if (!platform) return;
         
-        enemy.x += enemy.velX;
+        enemy.x += enemy.velX * timeScale;
         
         if (enemy.x <= platform.x) {
             enemy.x = platform.x;
-            enemy.velX = Math.abs(enemy.velX);
+            enemy.velX = Math.abs(enemy.velX) / timeScale;
         }
         if (enemy.x + enemy.width >= platform.x + platform.width) {
             enemy.x = platform.x + platform.width - enemy.width;
-            enemy.velX = -Math.abs(enemy.velX);
+            enemy.velX = -Math.abs(enemy.velX) / timeScale;
         }
         
         if (checkCollision(player, enemy)) {
@@ -1091,7 +1100,7 @@ function updateEnemies() {
                 const enemyIndex = enemies.indexOf(enemy);
                 createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#8b4513', 20);
                 enemies.splice(enemyIndex, 1);
-                player.velY = -10;
+                player.velY = -10 * timeScale;
                 score += 2;
                 playEnemyDeathSound();
             } else if (!gameOver) {
@@ -1108,14 +1117,14 @@ function updateBoss() {
     if (castlePlatform) {
         if (boss.x <= castlePlatform.x) {
             boss.x = castlePlatform.x;
-            boss.velX = Math.abs(boss.velX);
+            boss.velX = Math.abs(boss.velX) / timeScale;
         }
         if (boss.x + boss.width >= castlePlatform.x + castlePlatform.width) {
             boss.x = castlePlatform.x + castlePlatform.width - boss.width;
-            boss.velX = -Math.abs(boss.velX);
+            boss.velX = -Math.abs(boss.velX) / timeScale;
         }
     }
-    boss.x += boss.velX;
+    boss.x += boss.velX * timeScale;
     
     if (checkCollision(player, boss)) {
         if (!gameOver) {
@@ -1141,7 +1150,7 @@ function updateBoss() {
 function updateBullets() {
     for (let i = bullets.length - 1; i >= 0; i--) {
         const bullet = bullets[i];
-        bullet.x += bullet.velX;
+        bullet.x += bullet.velX * timeScale;
         
         if (bullet.x < 0 || bullet.x > WORLD_WIDTH) {
             bullets.splice(i, 1);
@@ -1291,14 +1300,14 @@ function updatePlayer() {
         player.velX *= FRICTION;
     }
 
-    if (shootCooldown > 0) shootCooldown--;
+    if (shootCooldown > 0) shootCooldown -= timeScale;
     
     if (keys.shoot && shootCooldown === 0) {
         const bulletX = player.facingRight ? player.x + player.width : player.x;
         bullets.push({
             x: bulletX,
             y: player.y + player.height / 2,
-            velX: player.facingRight ? 12 : -12,
+            velX: (player.facingRight ? 12 : -12) * timeScale,
             width: 10,
             height: 10
         });
@@ -1470,7 +1479,27 @@ function selectLevel(level) {
     document.getElementById('level' + level).classList.add('active');
 }
 
-function gameLoop() {
+function gameLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const deltaTime = timestamp - lastTime;
+    lastTime = timestamp;
+    
+    // Cap delta time to prevent huge jumps (e.g. when switching tabs)
+    // Max ~100ms (10fps minimum)
+    const cappedDelta = Math.min(deltaTime, 100);
+    
+    // Calculate time scale based on target FPS
+    // If running at 60fps, timeScale = 1
+    // If running at 120fps, timeScale = 0.5 (slower)
+    // If running at 30fps, timeScale = 2 (faster)
+    timeScale = cappedDelta / (1000 / TARGET_FPS);
+    
+    // Update physics constants based on time scale
+    GRAVITY = GRAVITY_BASE * timeScale;
+    FRICTION = Math.pow(FRICTION_BASE, timeScale);
+    MOVE_SPEED = MOVE_SPEED_BASE * timeScale;
+    JUMP_FORCE = JUMP_FORCE_BASE * timeScale;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (gameState === 'title') {
