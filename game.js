@@ -1302,7 +1302,7 @@ function updatePlayer() {
 
     if (shootCooldown > 0) shootCooldown -= timeScale;
     
-    if (keys.shoot && shootCooldown === 0) {
+    if (keys.shoot && shootCooldown <= 0) {
         const bulletX = player.facingRight ? player.x + player.width : player.x;
         bullets.push({
             x: bulletX,
