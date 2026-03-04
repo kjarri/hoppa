@@ -1,82 +1,53 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+const images = {
+    tiles: new Image(),
+    backgrounds: new Image(),
+    characters: new Image(),
+    enemies: new Image()
+};
+images.tiles.src = 'kenney_assets/Spritesheets/spritesheet-tiles-default.png';
+images.backgrounds.src = 'kenney_assets/Spritesheets/spritesheet-backgrounds-default.png';
+images.characters.src = 'kenney_assets/Spritesheets/spritesheet-characters-default.png';
+images.enemies.src = 'kenney_assets/Spritesheets/spritesheet-enemies-default.png';
+
+function drawSprite(ctx, imgType, spriteName, x, y, width, height, flipX = false) {
+    if (!spriteData || !spriteData[imgType] || !spriteData[imgType][spriteName]) {
+        // Fallback placeholder
+        ctx.fillStyle = '#ff00ff';
+        ctx.fillRect(x, y, width, height);
+        return;
+    }
+    const sprite = spriteData[imgType][spriteName];
+    const img = images[imgType];
+    if (!img.complete) return;
+    
+    ctx.save();
+    ctx.translate(x + (flipX ? width : 0), y);
+    if (flipX) ctx.scale(-1, 1);
+    
+    ctx.drawImage(img, sprite.x, sprite.y, sprite.width, sprite.height, 0, 0, width, height);
+    ctx.restore();
+}
+
 const characters = {
     kall: {
         name: 'Kall',
         draw: function(ctx, x, y, width, height, facingRight, state, frame) {
-            ctx.save();
-            ctx.translate(x + width / 2, y + height / 2);
-            if (!facingRight) ctx.scale(-1, 1);
-            
-            ctx.fillStyle = '#e63946';
-            ctx.fillRect(-width/2 + 4, -height/2 + 20, width - 8, height - 24);
-            
-            ctx.fillStyle = '#ffcc99';
-            ctx.fillRect(-width/2 + 12, -height/2 + 4, 16, 18);
-            
-            ctx.fillStyle = '#222';
-            ctx.fillRect(-width/2 + 14, -height/2 + 8, 4, 4);
-            ctx.fillRect(-width/2 + 22, -height/2 + 8, 4, 4);
-            
-            ctx.fillStyle = '#4a3728';
-            ctx.fillRect(-width/2 + 10, -height/2, 20, 8);
-            
-            ctx.fillStyle = '#333';
-            ctx.fillRect(-width/2 + 2, -height/2 + 28, 8, 16);
-            ctx.fillRect(-width/2 + width - 10, -height/2 + 28, 8, 16);
-            
-            ctx.fillStyle = '#2c3e50';
-            ctx.fillRect(-width/2 + 14, -height/2 + 42, 10, 14);
-            
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillRect(-width/2 + 12, height/2 - 6, 10, 6);
-            ctx.fillRect(-width/2 + width - 22, height/2 - 6, 10, 6);
-            
-            ctx.restore();
-        }
-    },
-    neo: {
-        name: 'Neo',
-        draw: function(ctx, x, y, width, height, facingRight, state, frame) {
-            ctx.save();
-            ctx.translate(x + width / 2, y + height / 2);
-            if (!facingRight) ctx.scale(-1, 1);
-            
-            ctx.fillStyle = '#2c3e50';
-            ctx.fillRect(-width/2 + 4, -height/2 + 20, width - 8, height - 24);
-            
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(-width/2 + 6, -height/2 + 22, width - 12, height - 30);
-            
-            ctx.fillStyle = '#ffcc99';
-            ctx.fillRect(-width/2 + 14, -height/2 + 6, 14, 16);
-            
-            ctx.fillStyle = '#00ff00';
-            ctx.fillRect(-width/2 + 16, -height/2 + 10, 4, 4);
-            ctx.fillRect(-width/2 + 24, -height/2 + 10, 4, 4);
-            
-            ctx.fillStyle = '#000';
-            ctx.fillRect(-width/2 + 17, -height/2 + 11, 2, 2);
-            ctx.fillRect(-width/2 + 25, -height/2 + 11, 2, 2);
-            
-            ctx.fillStyle = '#e63946';
-            ctx.fillRect(-width/2 + 2, -height/2 + 28, 8, 14);
-            ctx.fillRect(-width/2 + width - 10, -height/2 + 28, 8, 14);
-            
-            ctx.fillStyle = '#34495e';
-            ctx.fillRect(-width/2 + 14, -height/2 + 40, 10, 14);
-            
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillRect(-width/2 + 12, height/2 - 6, 10, 6);
-            ctx.fillRect(-width/2 + width - 22, height/2 - 6, 10, 6);
-            
-            ctx.restore();
+            let spriteName = 'character_yellow_idle';
+            if (state === 'walk') {
+                spriteName = frame % 2 === 0 ? 'character_yellow_walk_a' : 'character_yellow_walk_b';
+            } else if (state === 'jump') {
+                spriteName = 'character_yellow_jump';
+            }
+            // Draw character, note: characters are originally 128x128 but player hit box is 48x72
+            // We scale appropriately.
+            // Adjust y slightly so feet touch ground.
+            drawSprite(ctx, 'characters', spriteName, x - (width * 0.8), y - (height * 0.3), width * 2.5, height * 1.5, !facingRight);
         }
     }
 };
-
-let selectedCharacter = 'neo';
 
 let playerAnimFrame = 0;
 let playerAnimTimer = 0;
@@ -100,18 +71,6 @@ function toggleDebug() {
     btn.textContent = 'Villuleit: ' + (DEBUG_MODE ? 'KVEIKT' : 'SLÖKKT');
     btn.style.background = DEBUG_MODE ? '#e63946' : '#4a4e69';
     logEvent('Villuleit breytt: ' + (DEBUG_MODE ? 'KVEIKT' : 'SLÖKKT'));
-}
-
-function selectCharacter(charKey) {
-    if (!characters[charKey]) return;
-    selectedCharacter = charKey;
-    playerAnimFrame = 0;
-    playerAnimTimer = 0;
-    playerState = 'idle';
-    
-    document.querySelectorAll('.char-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById('char-' + charKey).classList.add('active');
-    logEvent('Karakter valinn: ' + characters[charKey].name);
 }
 
 function logEvent(msg) {
@@ -151,8 +110,8 @@ const keys = {
 const player = {
     x: 100,
     y: 300,
-    width: 48,
-    height: 72,
+    width: 34,
+    height: 50,
     velX: 0,
     velY: 0,
     onGround: false,
@@ -770,124 +729,69 @@ function playShootSound() {
 }
 
 function drawBackground() {
-    let gradient;
+    let baseSprite = 'background_solid_sky';
+    let fadeSprite = 'background_fade_trees';
+    let solidSprite = 'background_color_trees';
     
     switch(currentTheme) {
         case 'desert':
-            gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#ff9966');
-            gradient.addColorStop(0.4, '#ffcc99');
-            gradient.addColorStop(1, '#ffe4b5');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#d2691e';
-            let grassHillX = -cameraX * 0.2;
-            ctx.beginPath();
-            ctx.moveTo(0, 600);
-            for (let x = 0; x <= 800; x += 40) {
-                const y = 500 + Math.sin((x + grassHillX) * 0.004) * 50;
-                ctx.lineTo(x, y);
-            }
-            ctx.lineTo(800, 600);
-            ctx.closePath();
-            ctx.fill();
+            baseSprite = 'background_solid_sky';
+            fadeSprite = 'background_fade_desert';
+            solidSprite = 'background_color_desert';
             break;
-            
         case 'cave':
-            gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#1a1a1a');
-            gradient.addColorStop(0.5, '#2d2d2d');
-            gradient.addColorStop(1, '#1a1a1a');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#3d3d3d';
-            let caveHillX = -cameraX * 0.1;
-            ctx.beginPath();
-            ctx.moveTo(0, 600);
-            for (let x = 0; x <= 800; x += 60) {
-                const y = 520 + Math.sin((x + caveHillX) * 0.006) * 30;
-                ctx.lineTo(x, y);
-            }
-            ctx.lineTo(800, 600);
-            ctx.closePath();
-            ctx.fill();
+            baseSprite = 'background_solid_dirt';
+            fadeSprite = 'background_fade_mushrooms';
+            solidSprite = 'background_color_mushrooms';
             break;
-            
         case 'snow':
-            gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#b8d4e8');
-            gradient.addColorStop(0.4, '#d6eaf8');
-            gradient.addColorStop(1, '#f0f8ff');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#a8c8dc';
-            let snowHillX = -cameraX * 0.25;
-            ctx.beginPath();
-            ctx.moveTo(0, 600);
-            for (let x = 0; x <= 800; x += 35) {
-                const y = 510 + Math.sin((x + snowHillX) * 0.005) * 45;
-                ctx.lineTo(x, y);
-            }
-            ctx.lineTo(800, 600);
-            ctx.closePath();
-            ctx.fill();
+            baseSprite = 'background_solid_sky';
+            fadeSprite = 'background_fade_hills';
+            solidSprite = 'background_color_hills';
             break;
-            
         case 'volcanic':
-            gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#2c1810');
-            gradient.addColorStop(0.3, '#4a2c2a');
-            gradient.addColorStop(0.6, '#1a0a05');
-            gradient.addColorStop(1, '#0d0502');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#3d1f1a';
-            let volcHillX = -cameraX * 0.15;
-            ctx.beginPath();
-            ctx.moveTo(0, 600);
-            for (let x = 0; x <= 800; x += 50) {
-                const y = 530 + Math.sin((x + volcHillX) * 0.005) * 35;
-                ctx.lineTo(x, y);
-            }
-            ctx.lineTo(800, 600);
-            ctx.closePath();
-            ctx.fill();
+            baseSprite = 'background_solid_dirt';
+            fadeSprite = 'background_fade_desert';
+            solidSprite = 'background_color_desert';
             break;
-            
         default:
-            gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#87ceeb');
-            gradient.addColorStop(0.4, '#b8e0f0');
-            gradient.addColorStop(1, '#d4f1f9');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#7cb87c';
-            let grassDefaultHillX = -cameraX * 0.3;
-            ctx.beginPath();
-            ctx.moveTo(0, 600);
-            for (let x = 0; x <= 800; x += 30) {
-                const y = 480 + Math.sin((x + grassDefaultHillX) * 0.003) * 60 + Math.sin((x + grassDefaultHillX) * 0.007) * 30;
-                ctx.lineTo(x, y);
-            }
-            ctx.lineTo(800, 600);
-            ctx.closePath();
-            ctx.fill();
-            
-            ctx.fillStyle = '#5a9a5a';
-            ctx.beginPath();
-            ctx.moveTo(0, 600);
-            for (let x = 0; x <= 800; x += 30) {
-                const y = 520 + Math.sin((x + grassDefaultHillX * 1.5) * 0.004 + 1) * 40 + Math.sin((x + grassDefaultHillX) * 0.008) * 20;
-                ctx.lineTo(x, y);
-            }
-            ctx.lineTo(800, 600);
-            ctx.closePath();
-            ctx.fill();
+            baseSprite = 'background_solid_sky';
+            fadeSprite = 'background_fade_trees';
+            solidSprite = 'background_color_trees';
+    }
+
+    // Parallax scrolling offset
+    const parallaxBase = -(cameraX * 0.1) % 256;
+    const parallaxFade = -(cameraX * 0.3) % 256;
+    
+    // Fill the entire background with the base sprite (sky, dirt)
+    for (let x = -256; x < SCREEN_WIDTH + 256; x += 256) {
+        for (let y = 0; y < SCREEN_HEIGHT; y += 256) {
+            drawSprite(ctx, 'backgrounds', baseSprite, x + parallaxBase, y, 256, 256);
+        }
+    }
+    
+    // In addition, for outdoor levels, let's draw some clouds
+    if (baseSprite === 'background_solid_sky') {
+        const parallaxClouds = -(cameraX * 0.15) % 256;
+        for (let x = -256; x < SCREEN_WIDTH + 256; x += 256) {
+            drawSprite(ctx, 'backgrounds', 'background_clouds', x + parallaxClouds, 50, 256, 256);
+        }
+    }
+
+    // Draw the fade layer (trees, hills, desert) slightly above the bottom of the screen
+    // We want the horizon line to be visible and the bottom of the screen to be covered by the solid color part of the fade.
+    // The fade image is 256px high. We can place it at y=250.
+    const fadeY = 250;
+    
+    for (let x = -256; x < SCREEN_WIDTH + 256; x += 256) {
+        // Draw the fade row
+        drawSprite(ctx, 'backgrounds', fadeSprite, x + parallaxFade, fadeY, 256, 256);
+        
+        // Fill the rest of the screen below the fade layer with the solid color
+        for (let y = fadeY + 256; y < SCREEN_HEIGHT; y += 256) {
+            drawSprite(ctx, 'backgrounds', solidSprite, x + parallaxFade, y, 256, 256);
+        }
     }
 }
 
@@ -896,147 +800,65 @@ function drawDecorations() {
         const dx = dec.x - cameraX * (dec.type === 'cloud' ? 0.2 : 0.5);
         if (dx < -100 || dx > SCREEN_WIDTH + 100) return;
         
+        let spriteName = null;
+        let yOffset = 0;
+        let scale = 1;
+        
         switch(dec.type) {
-            case 'tree':
-                ctx.fillStyle = '#5d4037';
-                ctx.fillRect(dx + dec.size * 0.35, dec.y - dec.size * 0.3, dec.size * 0.3, dec.size * 0.5);
-                ctx.fillStyle = '#2e7d32';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y - dec.size * 0.5, dec.size * 0.6, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx - dec.size * 0.35, dec.y - dec.size * 0.3, dec.size * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx + dec.size * 0.35, dec.y - dec.size * 0.35, dec.size * 0.4, 0, Math.PI * 2);
-                ctx.fill();
+            case 'tree': 
+                spriteName = 'mushroom_red'; 
+                scale = 2;
+                yOffset = 0;
                 break;
-                
-            case 'bush':
-                ctx.fillStyle = '#388e3c';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y, dec.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx - dec.size * 0.6, dec.y + 2, dec.size * 0.7, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx + dec.size * 0.6, dec.y + 2, dec.size * 0.7, 0, Math.PI * 2);
-                ctx.fill();
+            case 'bush': 
+                spriteName = 'bush'; 
+                scale = 1.5;
                 break;
-                
-            case 'cloud':
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y, dec.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx - dec.size * 0.7, dec.y + 5, dec.size * 0.7, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx + dec.size * 0.7, dec.y + 5, dec.size * 0.7, 0, Math.PI * 2);
-                ctx.fill();
+            case 'cloud': 
+                // We let the kenney background handle clouds
                 break;
-                
-            case 'cactus':
-                ctx.fillStyle = '#228b22';
-                ctx.fillRect(dx, dec.y - dec.size * 1.5, dec.size * 0.3, dec.size * 1.5);
-                ctx.fillRect(dx - dec.size * 0.4, dec.y - dec.size * 0.8, dec.size * 0.3, dec.size * 0.5);
-                ctx.fillRect(dx + dec.size * 0.1, dec.y - dec.size * 1.1, dec.size * 0.3, dec.size * 0.4);
+            case 'cactus': 
+                spriteName = 'cactus'; 
+                scale = 1.5;
                 break;
-                
-            case 'pyramid':
-                ctx.fillStyle = '#deb887';
-                ctx.beginPath();
-                ctx.moveTo(dx, dec.y);
-                ctx.lineTo(dx + dec.size / 2, dec.y - dec.size);
-                ctx.lineTo(dx + dec.size, dec.y);
-                ctx.closePath();
-                ctx.fill();
-                ctx.fillStyle = '#d2b48c';
-                ctx.beginPath();
-                ctx.moveTo(dx + dec.size * 0.3, dec.y);
-                ctx.lineTo(dx + dec.size / 2, dec.y - dec.size * 0.6);
-                ctx.lineTo(dx + dec.size * 0.7, dec.y);
-                ctx.closePath();
-                ctx.fill();
+            case 'pyramid': 
+                // Let the background handle distant elements
                 break;
-                
-            case 'stalactite':
-                ctx.fillStyle = '#5a5a5a';
-                ctx.beginPath();
-                ctx.moveTo(dx, dec.y);
-                ctx.lineTo(dx + dec.size * 0.3, dec.y + dec.size);
-                ctx.lineTo(dx - dec.size * 0.3, dec.y + dec.size);
-                ctx.closePath();
-                ctx.fill();
+            case 'stalactite': 
+                spriteName = 'spikes';
                 break;
-                
-            case 'rock':
-                ctx.fillStyle = '#4a4a4a';
-                ctx.beginPath();
-                ctx.ellipse(dx, dec.y, dec.size, dec.size * 0.6, 0, 0, Math.PI * 2);
-                ctx.fill();
+            case 'rock': 
+                spriteName = 'rock'; 
                 break;
-                
-            case 'mushroom':
-                ctx.fillStyle = '#8b4513';
-                ctx.fillRect(dx - 2, dec.y - dec.size * 0.3, 4, dec.size * 0.3);
-                ctx.fillStyle = '#ff4444';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y - dec.size * 0.3, dec.size * 0.5, 0, Math.PI * 2);
-                ctx.fill();
+            case 'mushroom': 
+                spriteName = 'mushroom_brown'; 
+                scale = 1.2;
                 break;
-                
-            case 'snowtree':
-                ctx.fillStyle = '#4a3728';
-                ctx.fillRect(dx + dec.size * 0.4, dec.y - dec.size * 0.2, dec.size * 0.2, dec.size * 0.3);
-                ctx.fillStyle = '#e8f4f8';
-                ctx.beginPath();
-                ctx.moveTo(dx, dec.y - dec.size * 0.2);
-                ctx.lineTo(dx + dec.size / 2, dec.y - dec.size);
-                ctx.lineTo(dx + dec.size, dec.y - dec.size * 0.2);
-                ctx.closePath();
-                ctx.fill();
+            case 'snowtree': 
+                spriteName = 'mushroom_brown'; // using mushroom as fallback
+                scale = 2;
                 break;
-                
-            case 'snowman':
-                ctx.fillStyle = '#f5f5f5';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y, dec.size * 0.8, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx, dec.y - dec.size * 1.3, dec.size * 0.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(dx, dec.y - dec.size * 2, dec.size * 0.35, 0, Math.PI * 2);
-                ctx.fill();
+            case 'snowman': 
+                spriteName = 'rock'; 
+                scale = 2;
                 break;
-                
-            case 'lava':
-                ctx.fillStyle = '#ff4500';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y, dec.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#ffa500';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y, dec.size * 0.6, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-                
-            case 'smoke':
-                ctx.fillStyle = 'rgba(100, 100, 100, 0.4)';
-                ctx.beginPath();
-                ctx.arc(dx, dec.y, dec.size, 0, Math.PI * 2);
-                ctx.fill();
-                break;
+            case 'lava': 
+            case 'smoke': 
+                break; // omitted for cleaner look
+        }
+        
+        if (spriteName && spriteData.tiles[spriteName]) {
+            const w = 64 * scale;
+            const h = 64 * scale;
+            drawSprite(ctx, 'tiles', spriteName, dx - w/2, dec.y - h + yOffset, w, h);
         }
     });
 }
 
 function drawPlayer() {
     const screenX = player.x - cameraX;
-    const char = characters[selectedCharacter];
+    // Always use the 'kall' character
+    const char = characters['kall'];
     
     if (!player.onGround) {
         playerState = 'jump';
@@ -1060,11 +882,12 @@ function drawPlayer() {
     
     char.draw(ctx, screenX, player.y, player.width, player.height, player.facingRight, playerState, playerAnimFrame);
     
-    const gunX = player.facingRight ? player.x + player.width - 4 : player.x - 8;
+    // Scale the gun offsets relative to the new player width/height
+    const gunX = player.facingRight ? player.x + player.width - 2 : player.x - 4;
     ctx.fillStyle = '#333';
-    ctx.fillRect(gunX - cameraX, player.y + 30, 16, 10);
+    ctx.fillRect(gunX - cameraX, player.y + player.height * 0.4, 8, 5);
     ctx.fillStyle = '#555';
-    ctx.fillRect(gunX - cameraX + (player.facingRight ? 10 : 0), player.y + 32, 6, 6);
+    ctx.fillRect(gunX - cameraX + (player.facingRight ? 5 : 0), player.y + player.height * 0.4 + 1, 3, 3);
 }
 
 function drawPlatforms() {
@@ -1073,63 +896,51 @@ function drawPlatforms() {
         
         const px = platform.x - cameraX;
         
+        let blockPrefix = 'terrain_grass_block';
         switch(currentTheme) {
-            case 'desert':
-                ctx.fillStyle = '#c2956e';
-                ctx.beginPath();
-                ctx.roundRect(px, platform.y, platform.width, platform.height, 5);
-                ctx.fill();
-                ctx.fillStyle = '#d4a574';
-                ctx.fillRect(px, platform.y, platform.width, 8);
-                break;
+            case 'desert': blockPrefix = 'terrain_sand_block'; break;
+            case 'cave': blockPrefix = 'terrain_stone_block'; break;
+            case 'snow': blockPrefix = 'terrain_snow_block'; break;
+            case 'volcanic': blockPrefix = 'terrain_purple_block'; break;
+            default: blockPrefix = 'terrain_grass_block'; break;
+        }
+
+        const tileSize = 64;
+        const cols = Math.max(1, Math.round(platform.width / tileSize));
+        const rows = Math.max(1, Math.round(platform.height / tileSize));
+        
+        const actualTileWidth = platform.width / cols;
+        const actualTileHeight = platform.height / rows;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                let suffix = '_center';
                 
-            case 'cave':
-                ctx.fillStyle = '#4a4a4a';
-                ctx.beginPath();
-                ctx.roundRect(px, platform.y, platform.width, platform.height, 3);
-                ctx.fill();
-                ctx.fillStyle = '#5a5a5a';
-                ctx.fillRect(px, platform.y, platform.width, 6);
-                break;
-                
-            case 'snow':
-                ctx.fillStyle = '#a8c8dc';
-                ctx.beginPath();
-                ctx.roundRect(px, platform.y, platform.width, platform.height, 5);
-                ctx.fill();
-                ctx.fillStyle = '#e8f4f8';
-                ctx.beginPath();
-                ctx.roundRect(px, platform.y, platform.width, 10, [5, 5, 0, 0]);
-                ctx.fill();
-                break;
-                
-            case 'volcanic':
-                ctx.fillStyle = '#2a1a1a';
-                ctx.beginPath();
-                ctx.roundRect(px, platform.y, platform.width, platform.height, 3);
-                ctx.fill();
-                ctx.fillStyle = '#4a2a2a';
-                ctx.fillRect(px, platform.y, platform.width, 8);
-                break;
-                
-            default:
-                ctx.fillStyle = '#3d5a45';
-                ctx.beginPath();
-                ctx.roundRect(px, platform.y, platform.width, platform.height, 8);
-                ctx.fill();
-                ctx.fillStyle = '#5a8a5f';
-                ctx.beginPath();
-                ctx.roundRect(px, platform.y, platform.width, 10, [8, 8, 0, 0]);
-                ctx.fill();
-                ctx.fillStyle = '#7bc086';
-                for (let i = 0; i < platform.width - 10; i += 15) {
-                    const grassHeight = 6 + Math.sin(i * 0.5) * 3;
-                    ctx.beginPath();
-                    ctx.moveTo(px + i + 5, platform.y + 2);
-                    ctx.lineTo(px + i + 8, platform.y - grassHeight);
-                    ctx.lineTo(px + i + 11, platform.y + 2);
-                    ctx.fill();
+                if (rows === 1 && cols === 1) {
+                    suffix = ''; // Use full block if it's 1x1, though it might not exist in all cases. Usually platforms are wider.
+                    // Fallback to top if no standalone block
+                    if (!spriteData.tiles[blockPrefix]) suffix = '_top';
+                } else if (r === 0) {
+                    if (c === 0) suffix = '_top_left';
+                    else if (c === cols - 1) suffix = '_top_right';
+                    else suffix = '_top';
+                } else if (r === rows - 1) {
+                    if (c === 0) suffix = '_bottom_left';
+                    else if (c === cols - 1) suffix = '_bottom_right';
+                    else suffix = '_bottom';
+                } else {
+                    if (c === 0) suffix = '_left';
+                    else if (c === cols - 1) suffix = '_right';
+                    else suffix = '_center';
                 }
+                
+                let tileName = blockPrefix + suffix;
+                // If specific tile doesn't exist, fallback
+                if (!spriteData.tiles[tileName]) tileName = blockPrefix + '_center';
+                if (!spriteData.tiles[tileName]) tileName = blockPrefix;
+
+                drawSprite(ctx, 'tiles', tileName, px + c * actualTileWidth, platform.y + r * actualTileHeight, actualTileWidth, actualTileHeight);
+            }
         }
     });
 }
@@ -1171,22 +982,24 @@ function drawLifePowerups() {
 }
 
 function drawEnemies() {
+    const time = Date.now();
+    
     enemies.forEach(enemy => {
         if (enemy.x - cameraX > SCREEN_WIDTH || enemy.x + enemy.width - cameraX < 0) return;
         
-        ctx.fillStyle = '#6a4c93';
-        ctx.fillRect(enemy.x - cameraX, enemy.y, enemy.width, enemy.height);
+        const isFrameA = Math.floor(time / 200) % 2 === 0;
+        const spriteName = isFrameA ? 'slime_normal_walk_a' : 'slime_normal_walk_b';
         
-        ctx.fillStyle = '#9d4edd';
-        ctx.fillRect(enemy.x - cameraX, enemy.y, enemy.width, 8);
+        // Enemies in the Kenney pack are mostly 50x28 (approx) or similar size to 64x64 tiles, let's scale it slightly bigger than the hitbox
+        // to make it look nice. The hitbox is currently 32x30. Let's draw it as 40x36.
+        const drawW = 40;
+        const drawH = 36;
+        const drawX = enemy.x - cameraX - (drawW - enemy.width) / 2;
+        const drawY = enemy.y - (drawH - enemy.height);
         
-        ctx.fillStyle = '#ff0000';
-        ctx.fillRect(enemy.x - cameraX + 6, enemy.y + 12, 8, 8);
-        ctx.fillRect(enemy.x - cameraX + 18, enemy.y + 12, 8, 8);
+        const facingRight = enemy.velX < 0; // Negative velocity means moving left, so we flip if moving left (or right depending on original sprite)
         
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(enemy.x - cameraX + 7, enemy.y + 13, 3, 3);
-        ctx.fillRect(enemy.x - cameraX + 19, enemy.y + 13, 3, 3);
+        drawSprite(ctx, 'enemies', spriteName, drawX, drawY, drawW, drawH, facingRight);
     });
 }
 

@@ -63,7 +63,7 @@
         canvas {
             border: 4px solid #4a4e69;
             border-radius: 4px;
-            background: linear-gradient(to bottom, #87ceeb, #e0f7fa);
+            background: #87ceeb; /* A fallback solid color, removing gradient to prevent mix */
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             max-width: 100%;
             height: auto;
@@ -176,10 +176,6 @@
 <body>
     <button id="debugToggle" onclick="toggleDebug()">Villuleit: SLÖKKT</button>
     <div class="game-container">
-        <div class="character-select">
-            <button class="char-btn active" id="char-kall" onclick="selectCharacter('kall')">Kall</button>
-            <button class="char-btn" id="char-neo" onclick="selectCharacter('neo')">Neo</button>
-        </div>
         <div class="level-buttons">
             <button class="level-btn active" id="level1" onclick="selectLevel(1); this.blur()">Borð 1</button>
             <button class="level-btn" id="level2" onclick="selectLevel(2); this.blur()">Borð 2</button>
@@ -203,6 +199,7 @@
             <p>Stýringar: <span>A</span> <span>D</span> til að hreyfa &nbsp;|&nbsp; <span>W</span> eða <span>Space</span> til að hoppa &nbsp;|&nbsp; <span>Örvar</span> til að skjóta</p>
         </div>
     </div>
+    <script src="sprite_data.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
